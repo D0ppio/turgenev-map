@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Интерактивная карта мест жизни Ивана Тургенева</title>
+    <!-- Подключаем Leaflet (CSS + JS) -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", "Roboto", "Georgia", serif;
+        background: #e9f0e8;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+      .header {
+        background: #2c5e2e;
+        color: white;
+        padding: 12px 5px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+      }
+      .header h1 {
+        font-size: 1rem;
+        letter-spacing: 1px;
+        font-weight: 400;
+      }
+      .header p {
+        font-size: 0.5rem;
+        opacity: 0.9;
+        margin-top: 5px;
+      }
+      #map {
+        flex: 1;
+        width: 100%;
+        z-index: 1;
+      }
+      /* Кастомный стиль для всплывающих окон */
+      .custom-popup .leaflet-popup-content-wrapper {
+        background: #fef7e0;
+        border-radius: 16px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+        border-left: 6px solid #2c5e2e;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      .custom-popup .leaflet-popup-content {
+        margin: 12px 16px;
+        min-width: 260px;
+        max-width: 320px;
+      }
+
+      /* Фикс для мобильных устройств — попап не вылезает за экран */
+      .leaflet-popup {
+        bottom: 20px !important;
+      }
+
+      .leaflet-popup-content-wrapper {
+        max-height: 85vh;
+        overflow-y: auto;
+      }
+
+      .popup-img {
+        width: 100%;
+        max-height: 280px;
+        min-height: 180px;
+        object-fit: contain;
+        background-color: #f5f0e0;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+      }
+
+      .popup-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #1e3a2f;
+        margin: 8px 0 4px;
+        border-bottom: 1px dashed #c0b28a;
+        display: inline-block;
+      }
+
+      .popup-desc {
+        font-size: 0.9rem;
+        color: #2c3e2b;
+        margin-top: 6px;
+        line-height: 1.4;
+      }
+
+      .popup-date {
+        font-size: 0.75rem;
+        color: #7f6b3e;
+        margin-top: 8px;
+        font-style: italic;
+      }
+
+      @media (max-width: 600px) {
+        .popup-img {
+          max-height: 220px;
+          min-height: 150px;
+        }
+        .custom-popup .leaflet-popup-content {
+          min-width: 200px;
+          max-width: 260px;
+        }
+        .leaflet-popup-content-wrapper {
+          max-height: 80vh;
+        }
+      }
+      .footer {
+        background: #2c3e2b;
+        color: #cddccd;
+        text-align: center;
+        font-size: 0.7rem;
+        padding: 6px;
+        z-index: 10;
+      }
+      @media (max-width: 600px) {
+        .popup-img {
+          max-height: 130px;
+        }
+        .custom-popup .leaflet-popup-content {
+          min-width: 200px;
+        }
+        .leaflet-popup-content-wrapper {
+          max-height: 70vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>📖 Иван Сергеевич Тургенев — литературная карта жизни</h1>
+      <p>
+        📍 От рождения до памятников: нажмите на метку, чтобы увидеть фото и
+        описание места
+      </p>
+    </div>
+    <div id="map"></div>
+    <div class="footer">
+      🌿 Интерактивный маршрут по местам, связанным с великим русским писателем
+      | С любовью к литературе
+    </div>
+
+    <script>
+      (function () {
+        const map = L.map("map").setView([52.97, 36.062], 6);
+
+        L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+          {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
+            subdomains: "abcd",
+            maxZoom: 18,
+            minZoom: 3,
+          },
+        ).addTo(map);
+
+        const places = [
+          {
+            name: "🏠 Орёл — место рождения",
+            description:
+              "Иван Тургенев родился 28 октября (9 ноября) 1818 года в городе Орёл, в дворянской семье. Дом на улице Борисоглебской (ныне Тургенева) не сохранился, но на этом месте установлен памятный знак и музей.",
+            image: "./images/turgenev-house.jpg",
+            coords: [52.9705, 36.0625],
+            date: "1818 г. — рождение",
+            type: "birth",
+          },
+          {
+            name: "🏡 Спасское-Лутовиново — родовое имение",
+            description:
+              "Родовое имение матери Тургенева под Орлом. Здесь прошло детство писателя, именно эти места вдохновили на 'Записки охотника'. Сейчас — мемориальный музей-заповедник.",
+            image: "./images/turgenev-house.jpg",
+            coords: [53.3707, 36.6247],
+            date: "1820–1830-е — детство",
+            type: "estate",
+          },
+          {
+            name: "🎓 Московский университет",
+            description:
+              "В 1833 году 15-летний Тургенев поступил на словесное отделение Московского университета. Здесь он слушал лекции, познакомился с Белинским, Герценом и другими мыслителями.",
+            image: "./images/university.png",
+            coords: [55.7558, 37.6176],
+            date: "1833–1834 гг. — учёба",
+            type: "study",
+          },
+          {
+            name: "📚 Санкт-Петербургский университет",
+            description:
+              "После перевода из Московского университета, Тургенев продолжил обучение на философском факультете Петербургского университета. Окончил в 1837 году.",
+            image: "./images/peter-univer.png",
+            coords: [59.9391, 30.3159],
+            date: "1834–1837 гг.",
+            type: "study",
+          },
+          {
+            name: "🇩🇪 Берлинский университет",
+            description:
+              "В 1838–1841 годах Тургенев слушал лекции в Берлинском университете по философии, истории и классической филологии. Здесь он сблизился с Н. Станкевичем и М. Бакуниным.",
+            image: "./images/berlin-univer.png",
+            coords: [52.5186, 13.3931],
+            date: "1838–1841 — стажировка",
+            type: "abroad",
+          },
+          {
+            name: "✍️ Санкт-Петербург — Литературная жизнь",
+            description:
+              "В Петербурге Тургенев активно печатался, встречался с кругом 'Современника', дружил с Некрасовым, Белинским. Здесь написаны многие рассказы и повести.",
+            image: "./images/turgenev-statue.png",
+            coords: [59.9386, 30.3141],
+            date: "1840–1850-е годы",
+            type: "work",
+          },
+          {
+            name: "🇫🇷 Париж — дом Тургенева (rue de Douai)",
+            description:
+              "С 1850-х годов Тургенев подолгу жил во Франции, где сблизился с семьёй Виардо. Его квартира на rue de Douai была центром русско-европейских литературных встреч.",
+            image:
+              "https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/3/3f/Turgenev_house_Paris.jpg",
+            coords: [48.8826, 2.3355],
+            date: "1856–1883 — основная резиденция",
+            type: "home",
+          },
+          {
+            name: "🏛 Баден-Баден (Вилла Тургенева)",
+            description:
+              "В 1860-х годах Тургенев часто гостил у семьи Виардо в Баден-Бадене, где была создана вилла. Здесь он написал роман 'Дым' и много работал.",
+            image: "./images/baden-baden.png",
+            coords: [48.7604, 8.2426],
+            date: "1863–1870 гг.",
+            type: "abroad",
+          },
+          {
+            name: "🎭 Буживаль — дача Ясени (последние годы)",
+            description:
+              "Дача в Буживале под Парижем, где Тургенев провёл последние годы жизни. Здесь он создал 'Стихотворения в прозе' и умер 3 сентября 1883 года.",
+            image: "./images/paris-house.png",
+            coords: [48.8718, 2.1336],
+            date: "1875–1883 — последний дом",
+            type: "death",
+          },
+          {
+            name: "⚰️ Могила Тургенева на Волковом кладбище (СПб)",
+            description:
+              "По завещанию, писатель похоронен в Санкт-Петербурге на Литераторских мостках Волковского кладбища. Величественный памятник из чёрного мрамора.",
+            image: "./images/turgenev-grave.jpg",
+            coords: [59.9032, 30.3585],
+            date: "1883 — место упокоения",
+            type: "grave",
+          },
+          {
+            name: "🗽 Памятник Тургеневу в Орле (сквер)",
+            description:
+              "В центре Орла, перед зданием театра, установлен величественный бронзовый памятник И.С. Тургеневу (открыт в 1968 году). Писатель изображён сидящим в кресле.",
+            image: "./images/statueofturg.png",
+            coords: [52.9662, 36.0745],
+            date: "Памятник (1968)",
+            type: "monument",
+          },
+          {
+            name: "🗽 Памятник Тургеневу в Москве (на Чистопрудном бульваре)",
+            description:
+              "Элегантный памятник работы скульптора А. Балашова (2018 г.) рядом с Чистопрудным бульваром. Тургенев изображён в зрелые годы с книгой в руке.",
+            image: "./images/statueofturg2.png",
+            coords: [55.7632, 37.6448],
+            date: "Памятник (2018)",
+            type: "monument",
+          },
+          {
+            name: "🗽 Памятник Тургеневу в Санкт-Петербурге (на Манежной площади)",
+            description:
+              "Бронзовый памятник открыт в 2001 году. Скульптор Я. Нейман, архитектор В. Спиридонов. Тургенев изображён в сюртуке, опирающимся на трость.",
+            image: "./images/statueofturg3.png",
+            coords: [59.9355, 30.3441],
+            date: "Памятник (2001)",
+            type: "monument",
+          },
+          {
+            name: "🏛 Памятник в Спасском-Лутовиново",
+            description:
+              "На территории усадьбы-музея установлен бюст писателя работы скульптора Г. Алексеева. Окружён старыми липами, любимый уголок усадьбы.",
+            image: "./images/statueofturg4.png",
+            coords: [53.3715, 36.625],
+            date: "Бюст в парке",
+            type: "monument",
+          },
+        ];
+
+        function getIconColor(type) {
+          switch (type) {
+            case "birth":
+              return "#2c6e2e";
+            case "estate":
+              return "#5b8c5a";
+            case "study":
+              return "#3f7e7c";
+            case "abroad":
+              return "#8d6b94";
+            case "work":
+              return "#b9734b";
+            case "home":
+              return "#b5651e";
+            case "death":
+              return "#4a4e4d";
+            case "grave":
+              return "#5c4d44";
+            case "monument":
+              return "#c29b4a";
+            default:
+              return "#2c5e2e";
+          }
+        }
+
+        function createCustomIcon(type) {
+          const color = getIconColor(type);
+          let emoji = "📍";
+          if (type === "birth") emoji = "🍼";
+          else if (type === "estate") emoji = "🌳";
+          else if (type === "study") emoji = "🎓";
+          else if (type === "abroad") emoji = "✈️";
+          else if (type === "work") emoji = "✍️";
+          else if (type === "home") emoji = "🏠";
+          else if (type === "death") emoji = "🕊";
+          else if (type === "grave") emoji = "⚰️";
+          else if (type === "monument") emoji = "🗿";
+
+          const htmlIcon = `
+            <div style="background-color: ${color}; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-size: 18px;">
+              ${emoji}
+            </div>
+          `;
+          return L.divIcon({
+            html: htmlIcon,
+            className: "custom-marker-icon",
+            iconSize: [34, 34],
+            popupAnchor: [0, -15],
+          });
+        }
+
+        // Функция для принудительного обновления позиции попапа
+        function fixPopupPosition(marker) {
+          if (marker.isPopupOpen()) {
+            const popup = marker.getPopup();
+            const latlng = marker.getLatLng();
+            // Принудительно обновляем позицию попапа
+            setTimeout(() => {
+              map.panTo(latlng);
+              popup.update();
+              // Дополнительный перерасчёт через invalidateSize
+              setTimeout(() => {
+                map.invalidateSize();
+                popup.update();
+              }, 50);
+            }, 10);
+          }
+        }
+
+        // Добавляем маркеры
+        places.forEach((place) => {
+          const icon = createCustomIcon(place.type);
+
+          const popupContent = `
+            <div style="text-align: center;">
+              <img class="popup-img" src="${place.image}" alt="${place.name}" onerror="this.onerror=null;this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Turgenev_photo.jpg/400px-Turgenev_photo.jpg';">
+              <div class="popup-title">${place.name}</div>
+              <div class="popup-desc">${place.description}</div>
+              <div class="popup-date">📅 ${place.date}</div>
+              ${place.type === "monument" ? '<span style="font-size:0.7rem;">🏛 Памятник культуры</span>' : ""}
+            </div>
+          `;
+
+          const marker = L.marker(place.coords, { icon: icon })
+            .bindPopup(popupContent, {
+              className: "custom-popup",
+              maxWidth: 300,
+              minWidth: 240,
+              autoPan: true,
+              autoPanPadding: L.point(50, 50),
+              keepInView: true,
+            })
+            .addTo(map);
+
+          // При открытии попапа — фиксим его позицию
+          marker.on("popupopen", function () {
+            fixPopupPosition(marker);
+          });
+
+          marker.bindTooltip(place.name, {
+            sticky: true,
+            offset: [0, -20],
+            opacity: 0.8,
+          });
+        });
+
+        // Глобальный фикс для всех попапов при изменении размеров карты
+        map.on("popupopen", function () {
+          setTimeout(() => {
+            map.invalidateSize();
+          }, 50);
+        });
+
+        // При изменении ориентации экрана или ресайзе — обновляем карту и закрытые попапы
+        window.addEventListener("resize", function () {
+          setTimeout(() => {
+            map.invalidateSize();
+          }, 100);
+        });
+
+        // При повороте экрана на мобильных устройствах
+        window.addEventListener("orientationchange", function () {
+          setTimeout(() => {
+            map.invalidateSize();
+          }, 100);
+        });
+
+        const allCoords = places.map((p) => p.coords);
+        let bounds = L.latLngBounds(allCoords);
+        map.fitBounds(bounds.pad(0.3));
+
+        // Легенда
+        const legend = L.control({ position: "bottomright" });
+        legend.onAdd = function () {
+          const div = L.DomUtil.create("div", "info legend");
+          div.style.backgroundColor = "rgba(255,255,240,0.85)";
+          div.style.padding = "8px 12px";
+          div.style.borderRadius = "20px";
+          div.style.fontSize = "12px";
+          div.style.boxShadow = "0 1px 6px rgba(0,0,0,0.2)";
+          div.style.borderLeft = "4px solid #2c5e2e";
+          div.innerHTML =
+            "<strong>📌 Легенда</strong><br>🍼 Рождение &nbsp;🌳 Усадьба<br>🎓 Учёба &nbsp;✈️ Зарубежье<br>✍️ Литература &nbsp;🏠 Жилище<br>⚰️ Могила &nbsp;🗿 Памятник<br><i>Клик на метку — фото</i>";
+          return div;
+        };
+        legend.addTo(map);
+
+        L.control
+          .scale({ metric: true, imperial: false, position: "bottomleft" })
+          .addTo(map);
+
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 200);
+      })();
+    </script>
+  </body>
+</html>
